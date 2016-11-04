@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<!-- saved from url=(0111)http://michal.karzynski.pl/blog/2014/05/18/setting-up-an-asynchronous-task-queue-for-django-using-celery-redis/ -->
+<html class="js video maskImage placeholder" lang="en"><!--<![endif]--><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><script src="./Setting up an asynchronous task queue for Django using Celery and Redis - Michał Karzyński_files/cb=gapi.loaded_1" async=""></script><script src="./Setting up an asynchronous task queue for Django using Celery and Redis - Michał Karzyński_files/cb=gapi.loaded_0" async=""></script>
+  
+  <title>Setting up an asynchronous task queue for Django using Celery and Redis - Michał Karzyński</title>
+  <meta name="author" content="Michał Karzyński">
+
+  
+  <meta name="description" content="Celery is a powerful, production-ready asynchronous job queue, which allows you to run time-consuming Python functions in the background. A Celery …">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width,minimum-scale=1,maximum-scale=1">
+
+  
+  <link rel="canonical" href="http://michal.karzynski.pl/blog/2014/05/18/setting-up-an-asynchronous-task-queue-for-django-using-celery-redis">
+  <link href="http://michal.karzynski.pl/images/favicon.ico" rel="icon">
+  <link href="./Setting up an asynchronous task queue for Django using Celery and Redis - Michał Karzyński_files/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="http://michal.karzynski.pl/atom.xml" rel="alternate" title="Michał Karzyński" type="application/atom+xml">
+  <script type="text/javascript" src="./Setting up an asynchronous task queue for Django using Celery and Redis - Michał Karzyński_files/jXHR.js"></script><script type="text/javascript" async="" src="./Setting up an asynchronous task queue for Django using Celery and Redis - Michał Karzyński_files/plusone.js" gapi_processed="true"></script><script id="facebook-jssdk" async="" src="./Setting up an asynchronous task queue for Django using Celery and Redis - Michał Karzyński_files/all.js"></script><script id="twitter-wjs" src="./Setting up an asynchronous task queue for Django using Celery and Redis - Michał Karzyński_files/widgets.js"></script><script type="text/javascript" async="" src="./Setting up an asynchronous task queue for Django using Celery and Redis - Michał Karzyński_files/dc.js"></script><script src="./Setting up an asynchronous task queue for Django using Celery and Redis - Michał Karzyński_files/modernizr-2.0.js"></script>
+  <script src="./Setting up an asynchronous task queue for Django using Celery and Redis - Michał Karzyński_files/jquery.min.js"></script>
+  <script>!window.jQuery && document.write(unescape('%3Cscript src="./javascripts/lib/jquery.min.js"%3E%3C/script%3E'))</script>
+  <script src="./Setting up an asynchronous task queue for Django using Celery and Redis - Michał Karzyński_files/octopress.js" type="text/javascript"></script>
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="./Setting up an asynchronous task queue for Django using Celery and Redis - Michał Karzyński_files/css" rel="stylesheet" type="text/css">
+<link href="./Setting up an asynchronous task queue for Django using Celery and Redis - Michał Karzyński_files/css(1)" rel="stylesheet" type="text/css">
+
+<meta name="google-site-verification" content="TJG9OXtdmvoliMwXYCEjt1vda2c03S60EVHDqwIy12o">
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-602203-3']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      // ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      ga.src = ('https:' == document.location.protocol ? 'https://' : 'http://') + 'stats.g.doubleclick.net/dc.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+<script src="./Setting up an asynchronous task queue for Django using Celery and Redis - Michał Karzyński_files/api.js"></script><script type="text/javascript" async="" src="./Setting up an asynchronous task queue for Django using Celery and Redis - Michał Karzyński_files/embed.js"></script><script type="text/javascript" async="" src="./Setting up an asynchronous task queue for Django using Celery and Redis - Michał Karzyński_files/widgets.js"></script><script type="text/javascript" charset="utf-8" async="" src="./Setting up an asynchronous task queue for Django using Celery and Redis - Michał Karzyński_files/timeline.f8bf188a26c0fb191f8cdd1eb88ad3c7.js"></script><script type="text/javascript" charset="utf-8" async="" src="./Setting up an asynchronous task queue for Django using Celery and Redis - Michał Karzyński_files/button.09a4c69b9e9879b3a066b7ecd72136d2.js"></script><script src="./Setting up an asynchronous task queue for Django using Celery and Redis - Michał Karzyński_files/public.json"></script><style type="text/css">.fb_hidden{position:absolute;top:-10000px;z-index:10001}.fb_reposition{overflow:hidden;position:relative}.fb_invisible{display:none}.fb_reset{background:none;border:0;border-spacing:0;color:#000;cursor:auto;direction:ltr;font-family:"lucida grande", tahoma, verdana, arial, sans-serif;font-size:11px;font-style:normal;font-variant:normal;font-weight:normal;letter-spacing:normal;line-height:1;margin:0;overflow:visible;padding:0;text-align:left;text-decoration:none;text-indent:0;text-shadow:none;text-transform:none;visibility:visible;white-space:normal;word-spacing:normal}.fb_reset>div{overflow:hidden}.fb_link img{border:none}@keyframes fb_transform{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}.fb_animate{animation:fb_transform .3s forwards}
+.fb_dialog{background:rgba(82, 82, 82, .7);position:absolute;top:-10000px;z-index:10001}.fb_reset .fb_dialog_legacy{overflow:visible}.fb_dialog_advanced{padding:10px;-moz-border-radius:8px;-webkit-border-radius:8px;border-radius:8px}.fb_dialog_content{background:#fff;color:#333}.fb_dialog_close_icon{background:url(https://static.xx.fbcdn.net/rsrc.php/v3/yq/r/IE9JII6Z1Ys.png) no-repeat scroll 0 0 transparent;_background-image:url(https://static.xx.fbcdn.net/rsrc.php/v3/yL/r/s816eWC-2sl.gif);cursor:pointer;display:block;height:15px;position:absolute;right:18px;top:17px;width:15px}.fb_dialog_mobile .fb_dialog_close_icon{top:5px;left:5px;right:auto}.fb_dialog_padding{background-color:transparent;position:absolute;width:1px;z-index:-1}.fb_dialog_close_icon:hover{background:url(https://static.xx.fbcdn.net/rsrc.php/v3/yq/r/IE9JII6Z1Ys.png) no-repeat scroll 0 -15px transparent;_background-image:url(https://static.xx.fbcdn.net/rsrc.php/v3/yL/r/s816eWC-2sl.gif)}.fb_dialog_close_icon:active{background:url(https://static.xx.fbcdn.net/rsrc.php/v3/yq/r/IE9JII6Z1Ys.png) no-repeat scroll 0 -30px transparent;_background-image:url(https://static.xx.fbcdn.net/rsrc.php/v3/yL/r/s816eWC-2sl.gif)}.fb_dialog_loader{background-color:#f6f7f9;border:1px solid #606060;font-size:24px;padding:20px}.fb_dialog_top_left,.fb_dialog_top_right,.fb_dialog_bottom_left,.fb_dialog_bottom_right{height:10px;width:10px;overflow:hidden;position:absolute}.fb_dialog_top_left{background:url(https://static.xx.fbcdn.net/rsrc.php/v3/ye/r/8YeTNIlTZjm.png) no-repeat 0 0;left:-10px;top:-10px}.fb_dialog_top_right{background:url(https://static.xx.fbcdn.net/rsrc.php/v3/ye/r/8YeTNIlTZjm.png) no-repeat 0 -10px;right:-10px;top:-10px}.fb_dialog_bottom_left{background:url(https://static.xx.fbcdn.net/rsrc.php/v3/ye/r/8YeTNIlTZjm.png) no-repeat 0 -20px;bottom:-10px;left:-10px}.fb_dialog_bottom_right{background:url(https://static.xx.fbcdn.net/rsrc.php/v3/ye/r/8YeTNIlTZjm.png) no-repeat 0 -30px;right:-10px;bottom:-10px}.fb_dialog_vert_left,.fb_dialog_vert_right,.fb_dialog_horiz_top,.fb_dialog_horiz_bottom{position:absolute;background:#525252;filter:alpha(opacity=70);opacity:.7}.fb_dialog_vert_left,.fb_dialog_vert_right{width:10px;height:100%}.fb_dialog_vert_left{margin-left:-10px}.fb_dialog_vert_right{right:0;margin-right:-10px}.fb_dialog_horiz_top,.fb_dialog_horiz_bottom{width:100%;height:10px}.fb_dialog_horiz_top{margin-top:-10px}.fb_dialog_horiz_bottom{bottom:0;margin-bottom:-10px}.fb_dialog_iframe{line-height:0}.fb_dialog_content .dialog_title{background:#6d84b4;border:1px solid #365899;color:#fff;font-size:14px;font-weight:bold;margin:0}.fb_dialog_content .dialog_title>span{background:url(https://static.xx.fbcdn.net/rsrc.php/v3/yd/r/Cou7n-nqK52.gif) no-repeat 5px 50%;float:left;padding:5px 0 7px 26px}body.fb_hidden{-webkit-transform:none;height:100%;margin:0;overflow:visible;position:absolute;top:-10000px;left:0;width:100%}.fb_dialog.fb_dialog_mobile.loading{background:url(https://static.xx.fbcdn.net/rsrc.php/v3/ya/r/3rhSv5V8j3o.gif) white no-repeat 50% 50%;min-height:100%;min-width:100%;overflow:hidden;position:absolute;top:0;z-index:10001}.fb_dialog.fb_dialog_mobile.loading.centered{width:auto;height:auto;min-height:initial;min-width:initial;background:none}.fb_dialog.fb_dialog_mobile.loading.centered #fb_dialog_loader_spinner{width:100%}.fb_dialog.fb_dialog_mobile.loading.centered .fb_dialog_content{background:none}.loading.centered #fb_dialog_loader_close{color:#fff;display:block;padding-top:20px;clear:both;font-size:18px}#fb-root #fb_dialog_ipad_overlay{background:rgba(0, 0, 0, .45);position:absolute;bottom:0;left:0;right:0;top:0;width:100%;min-height:100%;z-index:10000}#fb-root #fb_dialog_ipad_overlay.hidden{display:none}.fb_dialog.fb_dialog_mobile.loading iframe{visibility:hidden}.fb_dialog_content .dialog_header{-webkit-box-shadow:white 0 1px 1px -1px inset;background:-webkit-gradient(linear, 0% 0%, 0% 100%, from(#738ABA), to(#2C4987));border-bottom:1px solid;border-color:#1d4088;color:#fff;font:14px Helvetica, sans-serif;font-weight:bold;text-overflow:ellipsis;text-shadow:rgba(0, 30, 84, .296875) 0 -1px 0;vertical-align:middle;white-space:nowrap}.fb_dialog_content .dialog_header table{-webkit-font-smoothing:subpixel-antialiased;height:43px;width:100%}.fb_dialog_content .dialog_header td.header_left{font-size:12px;padding-left:5px;vertical-align:middle;width:60px}.fb_dialog_content .dialog_header td.header_right{font-size:12px;padding-right:5px;vertical-align:middle;width:60px}.fb_dialog_content .touchable_button{background:-webkit-gradient(linear, 0% 0%, 0% 100%, from(#4966A6), color-stop(.5, #355492), to(#2A4887));border:1px solid #29487d;-webkit-background-clip:padding-box;-webkit-border-radius:3px;-webkit-box-shadow:rgba(0, 0, 0, .117188) 0 1px 1px inset, rgba(255, 255, 255, .167969) 0 1px 0;display:inline-block;margin-top:3px;max-width:85px;line-height:18px;padding:4px 12px;position:relative}.fb_dialog_content .dialog_header .touchable_button input{border:none;background:none;color:#fff;font:12px Helvetica, sans-serif;font-weight:bold;margin:2px -12px;padding:2px 6px 3px 6px;text-shadow:rgba(0, 30, 84, .296875) 0 -1px 0}.fb_dialog_content .dialog_header .header_center{color:#fff;font-size:16px;font-weight:bold;line-height:18px;text-align:center;vertical-align:middle}.fb_dialog_content .dialog_content{background:url(https://static.xx.fbcdn.net/rsrc.php/v3/y9/r/jKEcVPZFk-2.gif) no-repeat 50% 50%;border:1px solid #555;border-bottom:0;border-top:0;height:150px}.fb_dialog_content .dialog_footer{background:#f6f7f9;border:1px solid #555;border-top-color:#ccc;height:40px}#fb_dialog_loader_close{float:left}.fb_dialog.fb_dialog_mobile .fb_dialog_close_button{text-shadow:rgba(0, 30, 84, .296875) 0 -1px 0}.fb_dialog.fb_dialog_mobile .fb_dialog_close_icon{visibility:hidden}#fb_dialog_loader_spinner{animation:rotateSpinner 1.2s linear infinite;background-color:transparent;background-image:url(https://static.xx.fbcdn.net/rsrc.php/v3/yD/r/t-wz8gw1xG1.png);background-repeat:no-repeat;background-position:50% 50%;height:24px;width:24px}@keyframes rotateSpinner{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+.fb_iframe_widget{display:inline-block;position:relative}.fb_iframe_widget span{display:inline-block;position:relative;text-align:justify}.fb_iframe_widget iframe{position:absolute}.fb_iframe_widget_fluid_desktop,.fb_iframe_widget_fluid_desktop span,.fb_iframe_widget_fluid_desktop iframe{max-width:100%}.fb_iframe_widget_fluid_desktop iframe{min-width:220px;position:relative}.fb_iframe_widget_lift{z-index:1}.fb_hide_iframes iframe{position:relative;left:-10000px}.fb_iframe_widget_loader{position:relative;display:inline-block}.fb_iframe_widget_fluid{display:inline}.fb_iframe_widget_fluid span{width:100%}.fb_iframe_widget_loader iframe{min-height:32px;z-index:2;zoom:1}.fb_iframe_widget_loader .FB_Loader{background:url(https://static.xx.fbcdn.net/rsrc.php/v3/y9/r/jKEcVPZFk-2.gif) no-repeat;height:32px;width:32px;margin-left:-16px;position:absolute;left:50%;z-index:4}</style></head>
+
+<body>
+  <header role="banner"><hgroup>
+  <h1><a href="http://michal.karzynski.pl/">
+      <div id="meditating-gnu" title="Meditating GNU"></div>
+      Michał&nbsp;Karzyński</a></h1>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="http://michal.karzynski.pl/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get" onsubmit="document.getElementById(&#39;hiddenSearchBox&#39;).value=document.getElementById(&#39;visibleSearchBox&#39;).value+&#39; site:michal.karzynski.pl&#39;;">
+  <fieldset role="search">
+    <input class="search" type="hidden" name="q" id="hiddenSearchBox">
+    <input class="search" type="text" results="0" placeholder="Search" id="visibleSearchBox">
+  </fieldset>
+</form>
+  
+<fieldset class="mobile-nav"><select><option value="">Navigate…</option><option value="http://michal.karzynski.pl/">» Blog</option><option value="http://michal.karzynski.pl/blog/archives">» Archives</option><option value="http://www.linkedin.com/pub/micha%C5%82-karzy%C5%84ski/9/7a7/ba3">» LinkedIn</option><option value="http://twitter.com/postrational">» Twitter</option><option value="https://github.com/postrational">» Github</option><option value="http://last.fm/user/postrational">» Last.fm</option><option value="http://michal.karzynski.pl/atom.xml">» RSS</option></select></fieldset><ul class="main-navigation">
+  <li><a href="http://michal.karzynski.pl/">Blog</a></li>
+  <li><a href="http://michal.karzynski.pl/blog/archives">Archives</a></li>
+  <li><a href="http://www.linkedin.com/pub/micha%C5%82-karzy%C5%84ski/9/7a7/ba3">LinkedIn</a></li>
+  <li><a href="http://twitter.com/postrational">Twitter</a></li>
+  <li><a href="https://github.com/postrational">Github</a></li>
+  <li><a href="http://last.fm/user/postrational">Last.fm</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">Setting up an asynchronous task queue for Django using Celery and Redis</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-05-18T11:00:00+02:00" pubdate="" data-updated="true">May 18<span>th</span>, 2014</time>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p><a href="http://www.celeryproject.org/" title="Celery - Distributed Task Queue">Celery</a> is a powerful, production-ready asynchronous job queue, which allows you to run time-consuming Python functions in the background. A Celery powered application can respond to user requests quickly, while long-running tasks are passed onto the queue. In this article we will demonstrate how to add Celery to a Django application using Redis.</p>
+
+<!-- more -->
+
+
+<div class="tip"><p>Celery uses a <em>broker</em> to pass messages between your application and Celery worker processes. In this article we will set up Redis as the message broker. You should note that persistence is not the main goal of this data store, so your queue could be erased in the event of a power failure or other crash. Keep this in mind and don’t use the job queue to store application state. If you need your queue to be have persistence, <a href="http://docs.celeryproject.org/en/latest/getting-started/brokers/" title="Celery documentation - Brokers">use another message broker</a> such as <a href="https://www.rabbitmq.com/" title="RabbitMQ - message broker software">RabbitMQ</a>.</p></div>
+
+<h3>Prerequisites</h3>
+
+<p>In this article we will add Celery to a Django application running in a Python virtualenv. I will assume that the virtual environment is located in the directory <code>/webapps/hello_django/</code> and that the application is up an running. You can follow steps in my previous article to <a href="http://michal.karzynski.pl/blog/2013/06/09/django-nginx-gunicorn-virtualenv-supervisor/" title="Setting up Django with Nginx, Gunicorn, virtualenv, supervisor and PostgreSQL">set up Django in virtualenv running on Nginx and Gunicorn</a>.</p>
+
+<p>This article was tested on a server running Debian 7, so everything should also work on an Ubuntu server or other Debian-based distribution. If you’re using an RPM-based distro (such as CentOS), you will need to replace the <code>aptitude</code> commands by their <code>yum</code> counterparts and if you’re using FreeBSD you can install the components from ports. If you don’t have a server to play with, I can recommend the inexpensive VPS servers offered by <a href="https://www.digitalocean.com/?refcode=053914aba44d" title="Digital Ocean VPS Hosting">Digital Ocean</a>.</p>
+
+<h3>Update your system</h3>
+
+<p>Let’s get started by making sure your system is up to date.</p>
+
+<pre><code>$ sudo aptitude update
+$ sudo aptitude upgrade
+</code></pre>
+
+<h3>Install Redis</h3>
+
+<p>The first piece of software we’ll install is Redis.</p>
+
+<pre><code>$ sudo aptitude install redis-server
+$ redis-server --version
+Redis server version 2.4.14 (00000000:0)
+</code></pre>
+
+<p>Check if Redis is up and accepting connections:</p>
+
+<pre><code>$ redis-cli ping
+PONG
+</code></pre>
+
+<h3>Installing Celery in your aplication’s virtualenv</h3>
+
+<p>Let’s add Celery to your application’s virtual Python environment.</p>
+
+<p>First we’ll switch to the application user and activate the <code>virtualenv</code></p>
+
+<pre><code>$ sudo su - hello
+hello@django:~$ source bin/activate
+</code></pre>
+
+<p>Now we can use <code>pip</code> to install Celery along with its Redis bindings and dependencies:</p>
+
+<pre><code>(hello_django)hello@django:~$ pip install celery[redis]
+Downloading/unpacking celery[redis]
+(...)
+Successfully installed celery pytz billiard kombu redis anyjson amqp
+Cleaning up...
+</code></pre>
+
+<h3>Setting up Celery support in your Django application</h3>
+
+<p>In order to use Celery as part of your Django application you’ll need to create a few files and tweak some settings. Let’s start by adding Celery-related configuration variables to <code>settings.py</code></p>
+
+<figure class="code"><figcaption><span>/webapps/hello_django/hello/hello/settings.py </span></figcaption>
+<div class="highlight"><table><tbody><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="c"># CELERY SETTINGS</span>
+</span><span class="line"><span class="n">BROKER_URL</span> <span class="o">=</span> <span class="s">'redis://localhost:6379/0'</span>
+</span><span class="line"><span class="n">CELERY_ACCEPT_CONTENT</span> <span class="o">=</span> <span class="p">[</span><span class="s">'json'</span><span class="p">]</span>
+</span><span class="line"><span class="n">CELERY_TASK_SERIALIZER</span> <span class="o">=</span> <span class="s">'json'</span>
+</span><span class="line"><span class="n">CELERY_RESULT_SERIALIZER</span> <span class="o">=</span> <span class="s">'json'</span>
+</span></code></pre></td></tr></tbody></table></div></figure>
+
+
+<p>Now we’ll create a file named <code>celery.py</code>, which will instantiate Celery, creating a so called <em>Celery application</em>. You can find more information about available <a href="http://celery.readthedocs.org/en/latest/userguide/application.html#configuration" title="Celery documentation - Application">Celery application settings</a> in the documentation.</p>
+
+<figure class="code"><figcaption><span>/webapps/hello_django/hello/hello/celery.py </span></figcaption>
+<div class="highlight"><table><tbody><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span>
+</span><span class="line">
+</span><span class="line"><span class="kn">import</span> <span class="nn">os</span>
+</span><span class="line"><span class="kn">from</span> <span class="nn">celery</span> <span class="kn">import</span> <span class="n">Celery</span>
+</span><span class="line"><span class="kn">from</span> <span class="nn">django.conf</span> <span class="kn">import</span> <span class="n">settings</span>
+</span><span class="line">
+</span><span class="line"><span class="c"># set the default Django settings module for the 'celery' program.</span>
+</span><span class="line"><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s">'DJANGO_SETTINGS_MODULE'</span><span class="p">,</span> <span class="s">'hello.settings'</span><span class="p">)</span>
+</span><span class="line">
+</span><span class="line"><span class="n">app</span> <span class="o">=</span> <span class="n">Celery</span><span class="p">(</span><span class="s">'hello_django'</span><span class="p">)</span>
+</span><span class="line">
+</span><span class="line"><span class="c"># Using a string here means the worker will not have to</span>
+</span><span class="line"><span class="c"># pickle the object when using Windows.</span>
+</span><span class="line"><span class="n">app</span><span class="o">.</span><span class="n">config_from_object</span><span class="p">(</span><span class="s">'django.conf:settings'</span><span class="p">)</span>
+</span><span class="line"><span class="n">app</span><span class="o">.</span><span class="n">autodiscover_tasks</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="n">settings</span><span class="o">.</span><span class="n">INSTALLED_APPS</span><span class="p">)</span>
+</span></code></pre></td></tr></tbody></table></div></figure>
+
+
+<p>In order to instantiate the Celery app every time our Django application is started, we can add the following lines to the <code>__init__.py</code> file in our Django <code>proj.proj</code> module. This will make sure that celery task use this app.</p>
+
+<figure class="code"><figcaption><span>/webapps/hello_django/hello/hello/__init__.py </span></figcaption>
+<div class="highlight"><table><tbody><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span>
+</span><span class="line"><span class="kn">from</span> <span class="nn">.celery</span> <span class="kn">import</span> <span class="n">app</span> <span class="k">as</span> <span class="n">celery_app</span>
+</span></code></pre></td></tr></tbody></table></div></figure>
+
+
+<h4>Create your first tasks</h4>
+
+<p>We will now add an app called <code>testapp</code> to our Django project and add some tasks to this app. Let’s start by creating the app:</p>
+
+<pre><code>(hello_django)hello@django:~/hello$ python manage.py startapp testapp
+</code></pre>
+
+<p>Make sure that the app is added to <code>INSTALLED_APPS</code> in <code>settings.py</code></p>
+
+<figure class="code"><figcaption><span>/webapps/hello_django/hello/hello/settings.py </span></figcaption>
+<div class="highlight"><table><tbody><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="n">INSTALLED_APPS</span> <span class="o">=</span> <span class="p">(</span>
+</span><span class="line">    <span class="c"># (...)</span>
+</span><span class="line">    <span class="s">'testapp'</span><span class="p">,</span>
+</span><span class="line"><span class="p">)</span>
+</span></code></pre></td></tr></tbody></table></div></figure>
+
+
+<p>Create a file called <code>tasks.py</code> in your apps’s directory and add the code of your first Celery task to the file.</p>
+
+<figure class="code"><figcaption><span>/webapps/hello_django/hello/testapp/tasks.py </span></figcaption>
+<div class="highlight"><table><tbody><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span>
+</span><span class="line">
+</span><span class="line"><span class="kn">from</span> <span class="nn">celery</span> <span class="kn">import</span> <span class="n">shared_task</span>
+</span><span class="line">
+</span><span class="line"><span class="nd">@shared_task</span>
+</span><span class="line"><span class="k">def</span> <span class="nf">test</span><span class="p">(</span><span class="n">param</span><span class="p">):</span>
+</span><span class="line">    <span class="k">return</span> <span class="s">'The test task executed with argument "</span><span class="si">%s</span><span class="s">" '</span> <span class="o">%</span> <span class="n">param</span>
+</span></code></pre></td></tr></tbody></table></div></figure>
+
+
+<p>Find more information about <a href="http://docs.celeryproject.org/en/latest/userguide/tasks.html" title="Celery documentation - Tasks">writing task functions</a> in the docs.</p>
+
+<p>If you created all files as outlined above, you should see the following directory structure:</p>
+
+<pre><code>/webapps/hello_django/hello
+├── hello
+│&nbsp;&nbsp; ├── celery.py       # The Celery app file
+│&nbsp;&nbsp; ├── __init__.py     # The project module file we modified
+│&nbsp;&nbsp; ├── settings.py     # Settings go here, obviously :)
+│&nbsp;&nbsp; ├── urls.py
+│&nbsp;&nbsp; └── wsgi.py
+├── manage.py
+└── testapp
+    ├── __init__.py
+    ├── models.py
+    ├── tasks.py        # File containing tasks for this app
+    ├── tests.py
+    └── views.py
+</code></pre>
+
+<p>You can find a <a href="https://github.com/celery/celery/tree/master/examples/django" title="GitHub - Celery - sample Django project">complete sample Django project</a> on Celery’s GitHub.</p>
+
+<h3>Testing the setup</h3>
+
+<p>In production we will want Celery workers to be daemonized, but let’s just quickly start the workers to check that everything is configured correctly. Use the <code>celery</code> command located in your virtualenv’s <code>bin</code> directory to start the workers. Make sure that the module path <code>hello.celery:app</code> is available on your <code>PYTHONPATH</code>.</p>
+
+<div class="tip"><p>It’s important to understand <a href="http://docs.celeryproject.org/en/latest/userguide/tasks.html#automatic-naming-and-relative-imports" title="Celery documentation - Tasks - Automatic naming and relative imports">how Celery names tasks</a> which it discovers and how these names are related to Python module paths. If you run into <code>NotRegistered</code> or <code>ImportError</code> exceptions make sure that your apps and tasks are imported in a consistent manner and your <code>PYTHONPATH</code> is set correctly.</p></div>
+
+<pre><code>$ export PYTHONPATH=/webapps/hello_django/hello:$PYTHONPATH
+$ /webapps/hello_django/bin/celery --app=hello.celery:app worker --loglevel=INFO
+
+ -------------- celery@django v3.1.11 (Cipater)
+---- **** -----
+--- * ***  * -- Linux-3.2.0-4-amd64-x86_64-with-debian-7.5
+-- * - **** ---
+- ** ---------- [config]
+- ** ---------- .&gt; app:         hello_django:0x15ae410
+- ** ---------- .&gt; transport:   redis://localhost:6379/0
+- ** ---------- .&gt; results:     disabled
+- *** --- * --- .&gt; concurrency: 2 (prefork)
+-- ******* ----
+--- ***** ----- [queues]
+ -------------- .&gt; celery           exchange=celery(direct) key=celery
+
+[tasks]
+  . testapp.tasks.test
+
+[2014-05-20 13:53:59,740: INFO/MainProcess] Connected to redis://localhost:6379/0
+[2014-05-20 13:53:59,748: INFO/MainProcess] mingle: searching for neighbors
+[2014-05-20 13:54:00,756: INFO/MainProcess] mingle: all alone
+[2014-05-20 13:54:00,769: WARNING/MainProcess] celery@django ready.
+</code></pre>
+
+<p>If everything worked, you should see a splash screen similar to the above and the <code>[tasks]</code> section should list tasks discovered in all the apps of your project.</p>
+
+<pre><code>[tasks]
+  . testapp.tasks.test
+</code></pre>
+
+<h4>Submitting a task to the queue for execution</h4>
+
+<p>In another terminal, activate the virtualenv and start a task from your project’s shell.</p>
+
+<pre><code>$ sudo su - hello
+hello@django:~$ source bin/activate
+(hello_django)hello@django:~$ cd hello/
+(hello_django)hello@django:~/hello$ python manage.py shell
+Python 2.7.3 (default, Mar 13 2014, 11:03:55)
+[GCC 4.7.2] on linux2
+Type "help", "copyright", "credits" or "license" for more information.
+(InteractiveConsole)
+&gt;&gt;&gt; from testapp.tasks import test
+&gt;&gt;&gt; test.delay('This is just a test!')
+&lt;AsyncResult: 79e35cf7-0a3d-4786-b746-2d3dd45a5c16&gt;
+</code></pre>
+
+<p>You should see messages appear in the terminal where Celery workers are started:</p>
+
+<pre><code>[2014-05-18 11:43:24,801: INFO/MainProcess] Received task: testapp.tasks.test[79e35cf7-0a3d-4786-b746-2d3dd45a5c16]
+[2014-05-18 11:43:24,804: INFO/MainProcess] Task testapp.tasks.test[79e35cf7-0a3d-4786-b746-2d3dd45a5c16] succeeded in 0.00183034200018s: u'The test task executed with argument "This is just a test!" '
+</code></pre>
+
+<p>You can find more information about <a href="http://celery.readthedocs.org/en/latest/userguide/calling.html" title="Celery documentation - Calling Tasks">calling Celery tasks</a> in the docs.</p>
+
+<h3>Running Celery workers as daemons</h3>
+
+<p>In production we can use <a href="http://supervisord.org/" title="Supervisrord - Process Control System">supervisord</a> to start Celery workers and make sure they are restarted in case of a system reboot or crash. Installation of Supervisor is simple:</p>
+
+<pre><code>$ sudo aptitude install supervisor
+</code></pre>
+
+<p>When Supervisor is installed you can give it programs to start and watch by creating configuration files in the <code>/etc/supervisor/conf.d</code> directory. For our <code>hello-celery</code> worker we’ll create a file named <code>/etc/supervisor/conf.d/hello-celery.conf</code> with this content:</p>
+
+<figure class="code"><figcaption><span>/etc/supervisor/conf.d/hello-celery.conf </span></figcaption>
+<div class="highlight"><table><tbody><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+<span class="line-number">16</span>
+<span class="line-number">17</span>
+<span class="line-number">18</span>
+<span class="line-number">19</span>
+<span class="line-number">20</span>
+<span class="line-number">21</span>
+<span class="line-number">22</span>
+<span class="line-number">23</span>
+</pre></td><td class="code"><pre><code class="cfg"><span class="line"><span class="k">[program:hello-celery]</span>
+</span><span class="line"><span class="na">command</span><span class="o">=</span><span class="s">/webapps/hello_django/bin/celery --app=hello.celery:app worker --loglevel=INFO</span>
+</span><span class="line"><span class="na">directory</span><span class="o">=</span><span class="s">/webapps/hello_django/hello</span>
+</span><span class="line"><span class="na">user</span><span class="o">=</span><span class="s">hello</span>
+</span><span class="line"><span class="na">numprocs</span><span class="o">=</span><span class="s">1</span>
+</span><span class="line"><span class="na">stdout_logfile</span><span class="o">=</span><span class="s">/webapps/hello_django/logs/celery-worker.log</span>
+</span><span class="line"><span class="na">stderr_logfile</span><span class="o">=</span><span class="s">/webapps/hello_django/logs/celery-worker.log</span>
+</span><span class="line"><span class="na">autostart</span><span class="o">=</span><span class="s">true</span>
+</span><span class="line"><span class="na">autorestart</span><span class="o">=</span><span class="s">true</span>
+</span><span class="line"><span class="na">startsecs</span><span class="o">=</span><span class="s">10</span>
+</span><span class="line">
+</span><span class="line"><span class="c1">; Need to wait for currently executing tasks to finish at shutdown.</span>
+</span><span class="line"><span class="c1">; Increase this if you have very long running tasks.</span>
+</span><span class="line"><span class="na">stopwaitsecs</span> <span class="o">=</span> <span class="s">600</span>
+</span><span class="line">
+</span><span class="line"><span class="c1">; When resorting to send SIGKILL to the program to terminate it</span>
+</span><span class="line"><span class="c1">; send SIGKILL to its whole process group instead,</span>
+</span><span class="line"><span class="c1">; taking care of its children as well.</span>
+</span><span class="line"><span class="na">killasgroup</span><span class="o">=</span><span class="s">true</span>
+</span><span class="line">
+</span><span class="line"><span class="c1">; if rabbitmq is supervised, set its priority higher</span>
+</span><span class="line"><span class="c1">; so it starts first</span>
+</span><span class="line"><span class="na">priority</span><span class="o">=</span><span class="s">998</span>
+</span></code></pre></td></tr></tbody></table></div></figure>
+
+
+<p>This configuration is based on <a href="https://github.com/celery/celery/blob/3.1/extra/supervisord/celeryd.conf" title="GitHub - Celery - supervisord sample config">a sample config</a> provided by the makers of Celery. You can set <a href="http://supervisord.org/configuration.html#program-x-section-settings" title="Supervisrord program settings">many other options</a>.</p>
+
+<p>Create a file to store your application’s log messages:</p>
+
+<pre><code>hello@django:~$ mkdir -p /webapps/hello_django/logs/
+hello@django:~$ touch /webapps/hello_django/logs/celery-worker.log
+</code></pre>
+
+<p>After you save the configuration file for your program you can ask supervisor to reread configuration files and update (which will start your the newly registered app).</p>
+
+<pre><code>$ sudo supervisorctl reread
+hello-celery: available
+$ sudo supervisorctl update
+hello-celery: added process group
+</code></pre>
+
+<p>You can now monitor output of Celery workers by following the <code>celery-worker.log</code> file:</p>
+
+<pre><code>$ tail -f /webapps/hello_django/logs/celery-worker.log
+</code></pre>
+
+<p>You can also check the status of Celery or start, stop or restart it using supervisor.</p>
+
+<pre><code>$ sudo supervisorctl status hello                       
+hello                            RUNNING    pid 18020, uptime 0:00:50
+$ sudo supervisorctl stop hello  
+hello: stopped
+$ sudo supervisorctl start hello                        
+hello: started
+$ sudo supervisorctl restart hello 
+hello: stopped
+hello: started
+</code></pre>
+
+<p>Celery workers should now be automatically started after a system reboot and automatically restarted if they ever crashed for some reason.</p>
+
+<h3>Inspecting worker tasks</h3>
+
+<p>You can check that Celery is running by issuing the <code>celery status</code> command:</p>
+
+<pre><code>$ export PYTHONPATH=/webapps/hello_django/hello:$PYTHONPATH
+$ /webapps/hello_django/bin/celery --app=hello.celery:app status
+celery@django: OK
+
+1 node online.
+</code></pre>
+
+<p>You can also inspect the queue using a friendly curses monitor:</p>
+
+<pre><code>$ export PYTHONPATH=/webapps/hello_django/hello:$PYTHONPATH
+$ /webapps/hello_django/bin/celery --app=hello.celery:app control enable_events
+$ /webapps/hello_django/bin/celery --app=hello.celery:app events
+</code></pre>
+
+<div class="figure">
+<img src="./Setting up an asynchronous task queue for Django using Celery and Redis - Michał Karzyński_files/celery-curses-monitor.png">
+<div class="legend">Celery Worker monitor</div>
+</div>
+
+
+<p>I hope that’s enough to get you started. You should probably read the <a href="http://docs.celeryproject.org/en/latest/userguide/" title="Celery - User Guide">Celery User Guide</a> now. Happy coding!</p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">Michał Karzyński</span></span>
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-05-18T11:00:00+02:00" pubdate="" data-updated="true">May 18<span>th</span>, 2014</time>
+      
+
+<span class="categories">
+  
+    <a class="category" href="http://michal.karzynski.pl/blog/tech/">tech</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+    <iframe style="border: 0px; margin: 0px; padding: 0px; width: 60px; height: 20px;" src="./Setting up an asynchronous task queue for Django using Celery and Redis - Michał Karzyński_files/saved_resource.html"></iframe><script data-gittip-username="postrational" data-gittip-widget="button" src="./Setting up an asynchronous task queue for Django using Celery and Redis - Michał Karzyński_files/v1.js" data-gratipay-readystatus="ready"></script>
+
+  
+  
+  <iframe id="twitter-widget-0" scrolling="no" frameborder="0" allowtransparency="true" class="twitter-share-button twitter-share-button-rendered twitter-tweet-button" title="Twitter Tweet Button" src="./Setting up an asynchronous task queue for Django using Celery and Redis - Michał Karzyński_files/tweet_button.2dbd32894063b53338de1c1d4a747ea9.en.html" style="position: static; visibility: visible; width: 60px; height: 20px;" data-url="http://michal.karzynski.pl/blog/2014/05/18/setting-up-an-asynchronous-task-queue-for-django-using-celery-redis/"></iframe>
+  
+  
+    <div id="___plusone_0" style="text-indent: 0px; margin: 0px; padding: 0px; background: transparent; border-style: none; float: none; line-height: normal; font-size: 1px; vertical-align: baseline; display: inline-block; width: 90px; height: 20px;"><iframe frameborder="0" hspace="0" marginheight="0" marginwidth="0" scrolling="no" style="position: static; top: 0px; width: 90px; margin: 0px; border-style: none; left: 0px; visibility: visible; height: 20px;" tabindex="0" vspace="0" width="100%" id="I0_1478206182475" name="I0_1478206182475" src="./Setting up an asynchronous task queue for Django using Celery and Redis - Michał Karzyński_files/fastbutton.html" data-gapiattached="true" title="+1"></iframe></div>
+  
+  
+    <div class="fb-like fb_iframe_widget" data-send="true" data-width="450" height="28" data-show-faces="false" fb-xfbml-state="rendered" fb-iframe-plugin-query="app_id=212934732101925&amp;container_width=789&amp;height=28&amp;href=http%3A%2F%2Fmichal.karzynski.pl%2Fblog%2F2014%2F05%2F18%2Fsetting-up-an-asynchronous-task-queue-for-django-using-celery-redis%2F&amp;locale=en_US&amp;sdk=joey&amp;send=true&amp;show_faces=false&amp;width=450"><span style="vertical-align: bottom; width: 450px; height: 20px;"><iframe name="f3c4457bf0e2a5c" width="450px" height="28px" frameborder="0" allowtransparency="true" allowfullscreen="true" scrolling="no" title="fb:like Facebook Social Plugin" src="./Setting up an asynchronous task queue for Django using Celery and Redis - Michał Karzyński_files/like.html" style="border: none; visibility: visible; width: 450px; height: 20px;" class=""></iframe></span></div>
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="http://michal.karzynski.pl/blog/2014/04/19/continuous-integration-server-for-django-using-jenkins/" title="Previous Post: Setting up Jenkins as a continuous integration server for Django">« Setting up Jenkins as a continuous integration server for Django</a>
+      
+      
+        <a class="basic-alignment right" href="http://michal.karzynski.pl/blog/2014/06/22/devops-tools-for-everyone-vagrant-puppet-webmin/" title="Next Post: DevOps tools for everyone - Vagrant, Puppet and Webmin">DevOps tools for everyone - Vagrant, Puppet and Webmin »</a>
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><iframe id="dsq-app1" name="dsq-app1" allowtransparency="true" frameborder="0" scrolling="no" tabindex="0" title="Disqus" width="100%" src="./Setting up an asynchronous task queue for Django using Celery and Redis - Michał Karzyński_files/saved_resource(1).html" style="width: 1px !important; min-width: 100% !important; border: none !important; overflow: hidden !important; height: 3787px !important;" horizontalscrolling="no" verticalscrolling="no"></iframe><iframe id="indicator-north" name="indicator-north" allowtransparency="true" frameborder="0" scrolling="no" tabindex="0" title="Disqus" style="width: 789px !important; border: none !important; overflow: hidden !important; top: 0px !important; min-width: 789px !important; max-width: 789px !important; position: fixed !important; z-index: 2147483646 !important; height: 29px !important; min-height: 29px !important; max-height: 29px !important; display: none !important;" src="./Setting up an asynchronous task queue for Django using Celery and Redis - Michał Karzyński_files/saved_resource(2).html"></iframe><iframe id="indicator-south" name="indicator-south" allowtransparency="true" frameborder="0" scrolling="no" tabindex="0" title="Disqus" style="width: 789px !important; border: none !important; overflow: hidden !important; bottom: 0px !important; min-width: 789px !important; max-width: 789px !important; position: fixed !important; z-index: 2147483646 !important; height: 29px !important; min-height: 29px !important; max-height: 29px !important; display: none !important;" src="./Setting up an asynchronous task queue for Django using Celery and Redis - Michał Karzyński_files/saved_resource(3).html"></iframe></div>
+  </section>
+
+</div>
+
+<aside class="sidebar thirds">
+  
+    <section class="first odd">
+        <h1>About me</h1>
+        <img id="portrait" src="./Setting up an asynchronous task queue for Django using Celery and Redis - Michał Karzyński_files/portrait.png" height="132" width="105" alt="Michał Karzyński">
+        <p>Hi, my name is Michał and I'm a code geek.<br>
+            I&nbsp;work as a developer, project manager and systems architect.
+            I&nbsp;also write.</p>
+
+        <p>My favorite languages are currently JavaScript and Python and I'm good with Django, Angular, ExtJS and other MVC frameworks. </p>
+
+        <p>If you'd like to chat or hire me for your next project, feel free to <a class="contact_link" href="mailto:contact@karzynski.pl">contact me</a>.</p>
+</section>
+
+
+
+<section class="even">
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="http://michal.karzynski.pl/blog/2016/06/19/building-beautiful-restful-apis-using-flask-swagger-ui-flask-restplus/">Building beautiful RESTful APIs using Flask, Swagger UI and Flask-RESTPlus</a>
+      </li>
+    
+      <li class="post">
+        <a href="http://michal.karzynski.pl/blog/2015/04/19/packaging-django-applications-as-docker-container-images/">Packaging Django applications into Docker container images</a>
+      </li>
+    
+      <li class="post">
+        <a href="http://michal.karzynski.pl/blog/2014/06/22/devops-tools-for-everyone-vagrant-puppet-webmin/">DevOps tools for everyone - Vagrant, Puppet and Webmin</a>
+      </li>
+    
+      <li class="post">
+        <a href="http://michal.karzynski.pl/blog/2014/05/18/setting-up-an-asynchronous-task-queue-for-django-using-celery-redis/">Setting up an asynchronous task queue for Django using Celery and Redis</a>
+      </li>
+    
+      <li class="post">
+        <a href="http://michal.karzynski.pl/blog/2014/04/19/continuous-integration-server-for-django-using-jenkins/">Setting up Jenkins as a continuous integration server for Django</a>
+      </li>
+    
+  </ul>
+</section>
+    <section class="odd">
+        <h1>Grab my book</h1>
+        <a href="http://www.packtpub.com/webmin-administrators-cookbook/book" target="_blank"><img src="./Setting up an asynchronous task queue for Django using Celery and Redis - Michał Karzyński_files/webmin-administrators-cookbook-cover-small.jpg" style="width:100%;max-width:260px;" alt="Webmin Administrator&#39;s Cookbook"></a>
+    </section>
+
+<section class="first even">
+  <h1>GitHub Repos</h1>
+  <ul id="gh_repos"><li><a href="https://github.com/postrational/blog">blog</a><p>Source code repository for my blog.</p></li><li><a href="https://github.com/postrational/rest_api_demo">rest_api_demo</a><p>Boilerplate code for a RESTful API based on Flask-RESTPlus</p></li><li><a href="https://github.com/postrational/hello_django">hello_django</a><p>A simple Django project for demonstration purposes</p></li><li><a href="https://github.com/postrational/har2grinder">har2grinder</a><p>Creates test files for The Grinder based on HTTP Archive (HAR) files generated by Chrome DevTools.</p></li><li><a href="https://github.com/postrational/django-xmin">django-xmin</a><p>ExtJS Admin for Django</p></li></ul>
+  
+  <a href="https://github.com/postrational">@postrational</a> on GitHub
+  
+  <script type="text/javascript">
+    $(document).ready(function(){
+        if (!window.jXHR){
+            var jxhr = document.createElement('script');
+            jxhr.type = 'text/javascript';
+            jxhr.src = '/javascripts/libs/jXHR.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(jxhr, s);
+        }
+
+        github.showRepos({
+            user: 'postrational',
+            count: 0,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="./Setting up an asynchronous task queue for Django using Celery and Redis - Michał Karzyński_files/github.js" type="text/javascript"> </script>
+</section>
+
+
+
+
+<section class="odd">
+    <iframe id="twitter-widget-1" scrolling="no" frameborder="0" allowtransparency="true" allowfullscreen="true" class="twitter-timeline twitter-timeline-rendered" style="position: static; visibility: visible; display: inline-block; width: 520px; height: 250px; padding: 0px; border: none; max-width: 100%; min-width: 180px; margin-top: 0px; margin-bottom: 0px; min-height: 200px;" data-widget-id="356073537380966400" title="Twitter Timeline" src="./Setting up an asynchronous task queue for Django using Celery and Redis - Michał Karzyński_files/saved_resource(4).html"></iframe>
+    <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+"://platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
+</section>
+
+
+  
+</aside>
+
+
+    <span class="toggle-sidebar"></span></div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright © 2016 - Michał Karzyński -
+  <span class="credit">Powered by <a href="http://octopress.org/">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'postrational';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://michal.karzynski.pl/blog/2014/05/18/setting-up-an-asynchronous-task-queue-for-django-using-celery-redis/';
+        var disqus_url = 'http://michal.karzynski.pl/blog/2014/05/18/setting-up-an-asynchronous-task-queue-for-django-using-celery-redis/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+<div id="fb-root" class=" fb_reset"><div style="position: absolute; top: -10000px; height: 0px; width: 0px;"><div><iframe name="fb_xdm_frame_http" frameborder="0" allowtransparency="true" allowfullscreen="true" scrolling="no" id="fb_xdm_frame_http" aria-hidden="true" title="Facebook Cross Domain Communication Frame" tabindex="-1" src="./Setting up an asynchronous task queue for Django using Celery and Redis - Michał Karzyński_files/fTmIQU3LxvB.html" style="border: none;"></iframe><iframe name="fb_xdm_frame_https" frameborder="0" allowtransparency="true" allowfullscreen="true" scrolling="no" id="fb_xdm_frame_https" aria-hidden="true" title="Facebook Cross Domain Communication Frame" tabindex="-1" src="./Setting up an asynchronous task queue for Django using Celery and Redis - Michał Karzyński_files/fTmIQU3LxvB(1).html" style="border: none;"></iframe></div></div><div style="position: absolute; top: -10000px; height: 0px; width: 0px;"><div><iframe name="f335584b6b29c74" frameborder="0" allowtransparency="true" allowfullscreen="true" scrolling="no" src="./Setting up an asynchronous task queue for Django using Celery and Redis - Michał Karzyński_files/ping.html" style="display: none;"></iframe></div></div></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) {return;}
+  js = d.createElement(s); js.id = id; js.async = true;
+  js.src = "//connect.facebook.net/en_US/all.js#appId=212934732101925&xfbml=1";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+
+
+  <script type="text/javascript">
+    (function() {
+      var script = document.createElement('script'); script.type = 'text/javascript'; script.async = true;
+      script.src = 'https://apis.google.com/js/plusone.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(script, s);
+    })();
+  </script>
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = '//platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+
+
+<iframe name="oauth2relay853588504" id="oauth2relay853588504" src="./Setting up an asynchronous task queue for Django using Celery and Redis - Michał Karzyński_files/postmessageRelay.html" tabindex="-1" aria-hidden="true" style="width: 1px; height: 1px; position: absolute; top: -100px;"></iframe><iframe style="display: none;" src="./Setting up an asynchronous task queue for Django using Celery and Redis - Michał Karzyński_files/saved_resource(5).html"></iframe><iframe id="rufous-sandbox" scrolling="no" frameborder="0" allowtransparency="true" allowfullscreen="true" style="position: absolute; visibility: hidden; display: none; width: 0px; height: 0px; padding: 0px; border: none;" src="./Setting up an asynchronous task queue for Django using Celery and Redis - Michał Karzyński_files/saved_resource(6).html"></iframe></body></html>

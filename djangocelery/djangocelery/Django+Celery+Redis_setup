@@ -1,0 +1,65 @@
+Настройка
+Устанавливаем виртуальное окружение и приложение джанго
+
+1. Let’s get started by making sure your system is up to date.
+
+$ sudo aptitude update
+$ sudo aptitude upgrade
+Install Redis
+
+The first piece of software we’ll install is Redis.
+
+$ sudo aptitude install redis-server
+$ redis-server --version
+Redis server version 2.4.14 (00000000:0)
+Check if Redis is up and accepting connections:
+
+$ redis-cli ping
+PONG
+
+2 Now we can use pip to install Celery along with its Redis bindings and dependencies:
+
+(hello_django)hello@django:~$ pip install celery[redis]
+Downloading/unpacking celery[redis]
+
+3 Setting up Celery support in your Django application
+
+In order to use Celery as part of your Django application you’ll need to create a few files and tweak some settings. Let’s start by adding Celery-related configuration variables to settings.py
+
+/webapps/hello_django/hello/hello/settings.py
+
+# CELERY SETTINGS
+BROKER_URL = 'redis://localhost:6379/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+
+4 Now we’ll create a file named celery.py, which will instantiate Celery, creating a so called Celery application. 
+
+/webapps/hello_django/hello/hello/celery.py
+
+from __future__ import absolute_import
+
+import os
+from celery import Celery
+from django.conf import settings
+
+# set the default Django settings module for the 'celery' program.
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'hello.settings')
+
+app = Celery('hello_django')
+
+# Using a string here means the worker will not have to
+# pickle the object when using Windows.
+app.config_from_object('django.conf:settings')
+app.autodiscover_tasks(lambda: settings.INSTALLED_APPS)
+
+
+
+5 /webapps/hello_django/hello/hello/__init__.py
+
+from __future__ import absolute_import
+from .celery import app as celery_app
+
+
+
